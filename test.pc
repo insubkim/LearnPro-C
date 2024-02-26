@@ -1,0 +1,400 @@
+#include <stdio.h>  
+#include <string.h>
+#include <stdlib.h>  
+
+// #include <sqlda.h>
+exec sql include sqlca;  
+exec sql include sqlda;  
+
+
+/*  과제 요구 사항
+    Insert, delete, update, select 수행, function/procedure 수행,
+    dynamic sql (method 1 ~3) 방식으로 sql 수행
+*/
+
+//인디케이터 선언
+exec sql begin declare section;
+    volatile short indicator;
+exec sql end declare section;
+
+/* @brief db 연결
+ */
+void    connect_db(const char* user, const char* pass) {
+    exec sql begin declare section;  
+        char user_name[20],password[20];
+    exec sql end declare section;   
+    
+    strcpy(user_name, user);
+    strcpy(password, pass);
+    
+    exec sql connect :user_name identified by :password;
+}
+
+/* @brief sql 상태 출력
+ */
+void check_resent_sql_state (void) 
+{
+    if(sqlca.sqlcode != 0) 
+    {
+        printf("Error code:%d\n Error message:%s\n", sqlca.sqlcode, sqlca.sqlerrm.sqlerrmc); 
+        exit(-1);
+    }
+    EXEC SQL COMMIT WORK;
+}
+
+// /* @brief student 테이블에 id에 해당하는 info를 출력한다.
+// */
+// void select_data(int id) 
+// {
+//     char info[11] = {0, };
+    
+//     exec sql select info into :info from student where id = :id;
+    
+//     printf("info : %s\n", info);
+// }
+
+// /* @brief 동적 sql을 실행하고 호스트 변수 buf를 출력한다.
+//  * @param id    : query조건에 사용될 호스트 변수
+//  *        buf   : query결과에 사용될 호스트 변수
+//  *        query : 실행 쿼리
+//  */
+// void select_data_statement(int id, char buf[255], const char* query) 
+// {
+//     exec sql declare my_statement statement;
+//     exec sql prepare my_statement from :query;
+//     exec sql execute my_statement using :id;
+// }
+
+/* @brief 동적 sql을 실행하고 커서로 출력한다.
+ * @param id    : query조건에 사용될 호스트 변수
+ *        buf   : query결과에 사용될 호스트 변수
+ *        query : 실행 쿼리
+ */
+// void select_data_statement_using_cursor(int id, char buf[255], const char* query) 
+// {
+//     exec sql declare my_statement statement;
+//     exec sql prepare my_statement from :query;
+//     exec sql declare c cursor for my_statement;
+
+//     exec sql open c using :id;
+
+//     EXEC SQL WHENEVER NOT FOUND DO break;
+//     while (1) {
+//         memset(buf, 0, sizeof buf);
+//         exec sql fetch c into :buf;
+//         printf("buf : %s\n", buf);
+//     }
+    
+//     exec sql close c;
+// }
+
+
+
+// /* @brief student 테이블에 값을 넣는다.
+//  */
+// void insert_data(int id, char* name) 
+// {
+//     EXEC SQL INSERT INTO STUDENT values(:id INDICATOR :indicator, :name);
+//     printf("indicator return : %d\n", indicator);
+// }
+
+// /* @brief student 테이블 id에 해당하는 data를 지운다.
+//  */
+// void delete_by_id(int id) 
+// {
+//     EXEC SQL DELETE FROM STUDENT WHERE ID = :id;
+// }
+
+// /* @brief student 테이블에 id에 해당하는 info를 갱신한다.
+//  */
+// void update_info_by_id(int id, char* info) 
+// {
+
+//     EXEC SQL UPDATE STUDENT SET INFO = :info WHERE id = :id;
+// }
+
+// /* @brief insub.ora_sample_func 실행
+//  * @detail id에 해당하는 info 가져와서 info[10]에 저장
+//  * @param int id, char info[10]
+//  */
+// void    run_my_sample_function(int id, char info[10]) 
+// {
+//     exec sql call ora_sample_func(:id) into :info;
+// }
+
+// /* @brief insub.ora_sample_proc 실행
+//  * @detail start ~ end 에 해당하는 ecole 테이블 name 갱신
+//  * @param int start, int end, char name[10]
+// */
+// void    run_my_sample_procedure(int start, int end, char name[10]) 
+// {
+//     exec sql call ora_sample_proc(:start, :end, :name);
+
+//     exec sql execute
+//         begin
+//             ora_sample_proc(:start, :end, :name);
+//         end;
+//     end-exec;
+// }
+
+/* @brief insub.ora_sample_proc 생성 << 생성되지 않음.
+ * @detail start ~ end 에 해당하는 ecole 테이블 name 갱신
+*/
+// void    create_my_sample_procedure(void) 
+// { 
+//     exec sql
+//     create procedure ora_sample_proc (ss in number, ee in number) 
+//         as 
+//         begin
+//             insert into ecole values(1, 1);
+//         end;
+//     end-exec;
+// } 
+
+/* @brief 동적 sql 실행
+ * @param query : 실행할 동적 sql
+*/
+// void    execute_dynamic_query(const char* query) {
+//     exec sql execute immediate :query;
+
+//     exec sql execute immediate insert into ecole values(2, 'jeelee');
+// }
+
+// void scope_test(void) {
+//     {
+//         exec sql begin declare section;
+//             varchar arr[100];
+//         exec sql end declare section;
+//         exec sql select id into :arr from ecole where id = 2;
+//     }
+//     // exec sql select id into :arr from ecole where id = 2; << error
+//     // printf("arr : %s\n", arr.arr);
+// }
+
+/* @brief암시적 타입과 커서 테스트
+ * @detail 1. 단순 커서 테스트 << 확인 
+ *         2. 패키지 프로시저 할당 커서 테스트 << 확인 
+ *         3. 커서 포인터 테스트 << 미확인 
+ *         4. anonymous block 커서 테스트 << 미확인 
+ * eco_demo_pk 패키지 
+CREATE OR REPLACE PACKAGE eco_demo_pkg as
+   TYPE eco_cur_type IS REF CURSOR RETURN ecole%ROWTYPE;
+     PROCEDURE open_cur(curs IN OUT eco_cur_type);
+END eco_demo_pkg;
+ 
+ 
+CREATE OR REPLACE PACKAGE BODY eco_demo_pkg AS
+    PROCEDURE open_cur(curs IN OUT eco_cur_type) IS
+    BEGIN 
+        OPEN curs FOR SELECT *
+            FROM ecole 
+            ORDER BY id ASC;
+    END;
+END eco_demo_pkg;    
+*/
+// void    cursor_test(void) {
+//     {//일반 커서 테스트
+//         typedef struct s_row
+//         {
+//             int id;
+//             // char name[10];
+//             varchar name[10];
+//         } t_row;
+        
+//         t_row r;
+//         exec sql declare c cursor for select * from ecole;
+//         exec sql open c;
+//         exec sql whenever not found do break;
+//         while (1) {
+//             memset(r.name.arr, 0, sizeof r.name.arr);
+//             exec sql fetch c into :r;
+//             check_resent_sql_state();
+//             // printf("id : %d,  name : [%s]\n", r.id, r.name);//char
+//             printf("id : %d,  name : [%s]\n", r.id, r.name.arr);//varchar
+//         }
+//         exec sql close c;
+//     }
+//     {//커서 포인터, 커서 HOST 변수 테스트
+//         typedef struct s_row
+//         {
+//             int id;
+//             varchar name[100];
+//         } t_row;
+//         exec sql begin declare section;
+//             sql_cursor  section_c;
+//             sql_cursor* section_c_pointer;
+//             t_row r;
+//         exec sql end declare section;
+//         exec sql allocate :section_c;
+//         section_c_pointer = &section_c;//동작 미확인함.
+
+//         //get cursor using procedure
+//         exec sql execute
+//             begin
+//                 eco_demo_pkg.open_cur(:section_c);
+//             end;
+//         end-exec;
+//         check_resent_sql_state();
+//         printf("opened!\n");
+//         // exec sql whenever not found do break;
+//         while (1) {
+//             memset(r.name.arr, 0, sizeof r.name.arr);
+//             exec sql fetch :section_c into :r;
+//             check_resent_sql_state();
+//             printf("id : %d,  name : [%s]\n", r.id, r.name.arr);
+//         }
+//         EXEC SQL CLOSE :section_c;
+        
+//         //open cursor with anonymous block
+//         // id = 0;
+//         // exec sql execute 
+//         //     begin
+//         //         open :section_c for select id from ecole where name = 'inskim'; 
+//         //         loop
+//         //             fetch :section_c into :id;
+//         //             exit when :section_c%notfound;
+//         //         end loop;
+//         //     end;
+//         // end-exec;
+//         // printf("id = %d\n", id);
+//         //open cursor with embedded sql with cursor clause
+//         // exec oracle option(select_error=no);
+//         // exec sql select CURSOR(select name from ecole) into :section_c from dual;
+//         // exec oracle option(select_error=yes);
+//         /*  exec oracle option(select_error=yes);
+//         Before using queries which involve the CURSOR clause, you must set the select_error option to NO. This will prevent the cancellation of the parent cursor and allow the program to run without errors.
+//         */
+//     }
+// }
+
+
+// void dynamic_select(void) {
+//     exec sql begin declare section;
+//         char *s = "select * from ecole";
+//         SQLDA *bind_dp; 
+//         SQLDA *select_dp; 
+        
+//         int i;
+//         int prec, scal;
+//         char nullok;
+
+//         int max_vars = 100;
+//         int max_name = 100;
+//         int max_ind_name = 100;
+//     exec sql end declare section;
+
+
+    //bind_dp = SQLSQLDAAlloc(runtime_context, size, name_length, ind_name_length); 
+    //descriptor_name = SQLSQLDAAlloc (runtime_context, max_vars, max_name, max_ind_name); 
+    //The constant SQL_SINGLE_RCTX is defined as (dvoid*)0. Use it for runtime_context when your application is single-threaded.
+
+
+    //1. You use the DESCRIBE statement to help obtain the information Oracle needs.
+    //The DESCRIBE SELECT LIST statement examines each select-list item to determine its name and name length. It then stores this information in the select SQLDA for your use. For example, you might use select-list names as column headings in a printout. The total number of select-list items is also stored in the SQLDA by DESCRIBE.
+    //The DESCRIBE BIND VARIABLES statement examines each placeholder to determine its name and length, then stores this information in an input buffer and bind SQLDA for your use. For example, you might use placeholder names to prompt the user for the values of bind variables.
+
+//     struct SQLDA 
+// { 
+//     long    N;           Descriptor size in number of entries 
+//     char  **V;        Ptr to Arr of addresses of main variables 
+//     int   *L;               Ptr to Arr of lengths of buffers 
+//     short  *T;                 Ptr to Arr of types of buffers 
+//     short **I;       Ptr to Arr of addresses of indicator vars
+//     long    F;         Number of variables found by DESCRIBE 
+//     char  **S;           Ptr to Arr of variable name pointers 
+//     short  *M;        Ptr to Arr of max lengths of var. names 
+//     short  *C;     Ptr to Arr of current lengths of var. names 
+//     char  **X;          Ptr to Arr of ind. var. name pointers
+//     short  *Y;   Ptr to Arr of max lengths of ind. var. names 
+//     short  *Z;   Ptr to Arr of cur lengths of ind. var. names 
+// }; 
+
+//     bind_dp = SQLSQLDAAlloc(SQL_SINGLE_RCTX, max_vars, max_name, max_ind_name);
+//     select_dp = SQLSQLDAAlloc(SQL_SINGLE_RCTX, max_vars, max_name, max_ind_name);
+
+//     EXEC SQL PREPARE statement_name FROM :s;
+//     EXEC SQL DECLARE cursor_name CURSOR FOR statement_name; 
+//     EXEC SQL DESCRIBE BIND VARIABLES FOR statement_name INTO bind_dp; 
+
+//     EXEC SQL OPEN cursor_name;
+//     EXEC SQL DESCRIBE statement_name INTO select_dp;
+//     printf("S :%s\n", *(select_dp->S));
+//     printf("F :%d\n", select_dp->F);
+//     printf("bind F :%d\n", bind_dp->F);
+
+//     *(select_dp->S) = select_dp->F;
+//     for ( i = 0; i < select_dp->F; i++) 
+//     {
+//         SQLColumnNullCheck(SQL_SINGLE_RCTX, (unsigned short *)&(select_dp->T[i]), \
+//                 (unsigned short *)&(select_dp->T[i]), &nullok);
+//         switch(select_dp->T[i]) 
+//         { 
+//             case  1: break; 
+//             case  2: SQLNumberPrecV6(SQL_SINGLE_RCTX, 
+//                                 (unsigned long *)&(select_dp->L[i]), &prec, &scal); 
+//                         if (prec == 0) prec = 40; 
+//                         select_dp->L[i] = prec + 2; 
+//                         if (scal < 0) select_dp->L[i] += -scal; 
+//                         break; 
+//             case  8: select_dp->L[i] = 240; 
+//                         break; 
+//             case 11: select_dp->L[i] = 18; 
+//                         break; 
+//             case 12: select_dp->L[i] = 9; 
+//                         break; 
+//             case 23: break; 
+//             case 24: select_dp->L[i] = 240; 
+//                         break; 
+//         } 
+//         select_dp->V[i] = malloc(select_dp->L[i]+1); 
+//         select_dp->I[i] = (short *)malloc(sizeof(short *)); 
+//         if (select_dp->T[i] != 24) select_dp->T[i] = 5; 
+//     } 
+
+//     EXEC SQL FETCH cursor_name USING DESCRIPTOR select_dp;
+//     printf("value : %s\n", select_dp->V[0]);
+//     printf("value : %s\n", select_dp->V[1]);
+//     printf("value : %s\n", select_dp->V[2]);
+
+
+//     EXEC SQL CLOSE cursor_name; 
+// }
+
+/* @brief 포인터 변수로 select 결과 받기 
+ *
+ */
+void    pointer_test(void) {
+    char buf[255];  
+    exec sql select name into buf from ecole where id = 1;
+    printf("buF = %s\n", buf);
+}
+
+/* @brief 구조체 배열로 insert 하기
+ *
+ */
+void    struct_array_test(void) {
+    typedef struct s_arr {
+        int id;
+        char name[10];
+    } t_arr;
+    t_arr a[2] = {
+        {3, "cat1"},
+        {4, "cat2"}
+    };
+    exec sql insert into ecole values(:a);
+}
+
+void    type_test(void) {
+    exec sql begin declare section;
+        VARCHAR a[10];
+    exec sql end declare section;
+}
+
+void main()  
+{  
+    connect_db("insub", "123");
+    check_resent_sql_state();
+    type_test();
+    check_resent_sql_state();
+    printf("done\n");
+}  
