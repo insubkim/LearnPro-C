@@ -30,6 +30,19 @@ void    connect_db(const char* user, const char* pass) {
     exec sql connect :user_name identified by :password;
 }
 
+/* @brief db 연결
+ */
+void    connect_db_tns(const char* user, const char* pass, const char* tns) {
+    exec sql begin declare section;  
+        char user_name[200],password[200],tnsnames[200];
+    exec sql end declare section;
+    
+    strcpy(user_name, user);
+    strcpy(password, pass);
+    strcpy(tnsnames, tns); 
+    exec sql connect :user_name identified by :password using :tnsnames ;
+}
+
 /* @brief sql 상태 출력
  */
 void check_resent_sql_state (void) 
@@ -90,13 +103,13 @@ void check_resent_sql_state (void)
 
 
 
-// /* @brief student 테이블에 값을 넣는다.
-//  */
-// void insert_data(int id, char* name) 
-// {
-//     EXEC SQL INSERT INTO STUDENT values(:id INDICATOR :indicator, :name);
-//     printf("indicator return : %d\n", indicator);
-// }
+/* @brief student 테이블에 값을 넣는다.
+ */
+void insert_data(int id, char* name) 
+{
+    EXEC SQL INSERT INTO STUDENT values(:id INDICATOR :indicator, :name);
+    printf("indicator return : %d\n", indicator);
+}
 
 // /* @brief student 테이블 id에 해당하는 data를 지운다.
 //  */
@@ -392,9 +405,9 @@ void    type_test(void) {
 
 void main()  
 {  
-    connect_db("insub", "123");
+    // connect_db("insub", "123");
+    connect_db_tns("insub", "123", "(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = oracle)(PORT = 1521)) (CONNECT_DATA = (SERVER = DEDICATED)(SERVICE_NAME = orcl)))");
     check_resent_sql_state();
-    type_test();
     check_resent_sql_state();
     printf("done\n");
 }  

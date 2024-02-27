@@ -1,5 +1,5 @@
 OBJ=test.o
-PCSRC=test1.pc
+PCSRC=test.pc
 SRC=test.c
 CC=gcc
 PROC_FLAGS=SQLCHECK=SEMANTICS
